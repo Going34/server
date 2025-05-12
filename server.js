@@ -5,7 +5,9 @@ const path = require("path");
 const app = express();
 const server = http.createServer(app);
 const cors = require("cors");
-
+const axios = require("axios");
+const cron = require("node-cron");
+console.log("start");
 // Apply CORS middleware to Express
 app.use(
   cors({
@@ -31,6 +33,11 @@ const io = require("socket.io")(server, {
 // Add a simple route to verify the server is running
 app.get("/", (req, res) => {
   res.send("Video call server is running");
+});
+
+// Add a health check endpoint for the cron job to ping
+app.get("/health", (req, res) => {
+  res.status(200).send("OK");
 });
 
 // Store rooms and users
@@ -303,4 +310,28 @@ io.on("connection", (socket) => {
 });
 
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => console.log(`Server is running on port ${PORT}`));
+server.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+
+  // Set up a cron job to ping the server every 10 minutes to prevent Render from putting the service to sleep
+  const serverUrl = process.env.SERVER_URL || `http://localhost:${PORT}`;
+
+  // Function to ping the server
+  const pingServer = async () => {
+    try {
+      const response = await axios.get(`${serverUrl}/health`);
+      console.log(`Cron job ping successful: ${response.status}`);
+    } catch (error) {
+      console.error("Cron job ping failed:", error.message);
+    }
+  };
+
+  // Start the cron job if not in development mode
+  if (process.env.NODE_ENV !== "development") {
+    console.log(
+      `Setting up cron job to ping ${serverUrl}/health every 10 minutes`
+    );
+    // Schedule a task to run every 10 minutes
+    cron.schedule("*/10 * * * *", pingServer);
+  }
+});
