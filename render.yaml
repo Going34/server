@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: video-call-server
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SERVER_URL
+        sync: false # This will be set by Render automatically
+      - key: ALLOWED_ORIGINS
+        sync: false # You'll need to set this in the Render dashboard
+    autoDeploy: true
